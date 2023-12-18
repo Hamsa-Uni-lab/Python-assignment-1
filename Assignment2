@@ -1,0 +1,126 @@
+#Used in this program to help retrieve information about files
+import os
+#The Counter class in the collections module is used for counting the occurrences of elements in a collection (list/string)
+from collections import Counter
+
+
+#function to process the names from input file, create abbreviations and calculate the value of each abbreviation
+#Output is a dictionaary of abbreviation as key and its value as value of the key and a list of all the abbreviations
+def process_name(name, existing_keywords=set()):
+    #Load character values into a dictionary
+    char_value_dict = {}
+
+    with open('values.txt', 'r') as file:
+        for line in file:
+            char, value = line.strip().split()
+            char_value_dict[char] = int(value)
+ 
+    # Convert to uppercase
+    name = name.upper()
+    
+    # Remove non-alphabetic characters and split into words
+    name = ''.join(char for char in name if char.isalpha() or char.isspace())
+    words = name.split()
+    print(words)
+    #To calculate the value of each character in the name based on the position of word and letter in the word. 
+    values_list= []
+    for i, w in enumerate(words):
+        for j, char in enumerate(w):
+            if j == 0:
+                score = 0
+            elif j == len(w) -1 and char != 'E':
+                score = 5
+            elif j == len(w) -1 and char == 'E':
+                score = 20
+            else:
+                j = 3 if (j>2) else j
+                score = j + char_value_dict.get(char, 0)
+                print(score)
+            values_list.append(score)
+
+    # Create a list of all characters, excluding spaces
+    characters_list = [char for char in name if char.isalpha()]
+    
+    # Generate all possible 3-letter abbreviations using all letters in all words
+    abbreviations_dict = {}
+    abbreviation_list = []
+    alpha1 = characters_list[0] if characters_list else ''   # Constant value for alpha1
+    for i, alpha2 in enumerate (characters_list[1:]): # Start from index 1
+        for j, alpha3 in enumerate(characters_list[i+2:]):  # Start from the next index of alpha2
+            if j == len(characters_list[i:]) - 1:
+                break
+            abbreviation = alpha1 + alpha2 + alpha3
+            value = values_list[i+1] + values_list[i+j+2]
+            if abbreviation in abbreviations_dict:
+                if value < abbreviations_dict[abbreviation]:
+                    abbreviations_dict[abbreviation] = value
+            else:
+                abbreviations_dict[abbreviation] = value
+                abbreviation_list.append(abbreviation)
+    return(abbreviations_dict, abbreviation_list)
+
+#function to process the abbreviations list to count the occurence of each abbreviation to find common keys. Later delete
+#common keys from the dictionary and return all keys with least value/ empty value for each abbreviation dictionary
+def process_sort(abbreviations, abbreviation_list):
+    # Find the common keys and its occurence
+    common_keys = [item for sublist in abbreviation_list for item in sublist]
+    element_counts = Counter(common_keys)
+    repeating_elements = [element for element, count in element_counts.items() if count > 1]
+    #print(abbreviations)
+
+    for i in range(len(abbreviations) - 1):
+        for key in repeating_elements:
+            if key in abbreviations[i]:
+                del abbreviations[i][key]
+            if key in abbreviations[i + 1]:
+                del abbreviations[i + 1][key]
+
+    outputabb = []
+    for i in range(len(abbreviations)):
+        if ( abbreviations[i] == {}):
+            print("\n")
+            outputabb.append("")
+        else:
+            min_value = min(abbreviations[i].values())
+            min_key = [key for key, value in abbreviations[i].items() if value == min_value]
+            outputabb.append(min_key)
+            print(min_key,min_value)
+       
+    return(outputabb)
+
+#function where the program execution is initiated by calling main(), command to fetch input file is issued and the input 
+# file is read. For each name in the input file, abbreviations() and sort() functions are invoked, return is processed and 
+# output displayed to a specified output file with specific naming.
+def main():
+    # Fetch input file
+    input_file_path = input("Enter the path to the input file: ")
+    input_file_name = os.path.basename(input_file_path)
+
+    try:
+        # Read input file line by line and store in a list
+        with open(input_file_path, 'r') as input_file:
+            names = [line.strip() for line in input_file]
+
+        # Process each name and write to output file
+        abbreviations = []
+        abbreviationlist = []
+        output_file_path = f"Ravikumar_{input_file_name}_abbrevs.txt"
+        for name in names:
+            abbreviation, abblist = process_name(name)
+            abbreviations.append(abbreviation)
+            abbreviationlist.append(abblist)
+        finallist = process_sort(abbreviations, abbreviationlist)
+        with open(output_file_path, 'w') as output_file:
+            for name, abb in zip(names, finallist):
+                output_file.write(f"{name}\n")
+                for a in abb:
+                    output_file.write(f"{a} ")
+                output_file.write(f"\n")
+
+    except FileNotFoundError:
+        print("Error: Input file not found.")
+    except Exception as e:
+        print(f"An error occurred: {e}")
+
+if __name__ == "__main__":
+    main()
